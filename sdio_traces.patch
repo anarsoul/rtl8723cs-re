@@ -1,0 +1,95 @@
+diff --git a/drivers/mmc/core/sdio_io.c b/drivers/mmc/core/sdio_io.c
+index b774bf51981d..02f36444820e 100644
+--- a/drivers/mmc/core/sdio_io.c
++++ b/drivers/mmc/core/sdio_io.c
+@@ -17,6 +17,19 @@
+ #include "card.h"
+ #include "host.h"
+ 
++int sdio_traces = 0;
++
++/* This is only available if kgdboc is a built in for early debugging */
++static int __init sdio_early_init(char *opt)
++{
++	if (!strcmp(opt, "on"))
++		sdio_traces = 1;
++
++	return 0;
++}
++
++early_param("sdio_traces", sdio_early_init);
++
+ /**
+  *	sdio_claim_host - exclusively claim a bus for a certain SDIO function
+  *	@func: SDIO function that will be accessed
+@@ -393,6 +406,7 @@ u8 sdio_readb(struct sdio_func *func, unsigned int addr, int *err_ret)
+ 		*err_ret = ret;
+ 	if (ret)
+ 		return 0xFF;
++	if (sdio_traces) pr_info("%s: %.8x=%.2x", __func__, addr, val);
+ 
+ 	return val;
+ }
+@@ -422,6 +436,7 @@ void sdio_writeb(struct sdio_func *func, u8 b, unsigned int addr, int *err_ret)
+ 	ret = mmc_io_rw_direct(func->card, 1, func->num, addr, b, NULL);
+ 	if (err_ret)
+ 		*err_ret = ret;
++	if (sdio_traces) pr_info("%s: %.8x=%.2x", __func__, addr, b);
+ }
+ EXPORT_SYMBOL_GPL(sdio_writeb);
+ 
+@@ -536,6 +551,7 @@ EXPORT_SYMBOL_GPL(sdio_writesb);
+ u16 sdio_readw(struct sdio_func *func, unsigned int addr, int *err_ret)
+ {
+ 	int ret;
++	u16 v;
+ 
+ 	ret = sdio_memcpy_fromio(func, func->tmpbuf, addr, 2);
+ 	if (err_ret)
+@@ -543,7 +559,9 @@ u16 sdio_readw(struct sdio_func *func, unsigned int addr, int *err_ret)
+ 	if (ret)
+ 		return 0xFFFF;
+ 
+-	return le16_to_cpup((__le16 *)func->tmpbuf);
++	v = le16_to_cpup((__le16 *)func->tmpbuf);
++	if (sdio_traces) pr_info("%s: %.8x=%.4x", __func__, addr, v);
++	return v;
+ }
+ EXPORT_SYMBOL_GPL(sdio_readw);
+ 
+@@ -567,6 +585,7 @@ void sdio_writew(struct sdio_func *func, u16 b, unsigned int addr, int *err_ret)
+ 	ret = sdio_memcpy_toio(func, addr, func->tmpbuf, 2);
+ 	if (err_ret)
+ 		*err_ret = ret;
++	if (sdio_traces) pr_info("%s: %.8x=%.4x", __func__, addr, b);
+ }
+ EXPORT_SYMBOL_GPL(sdio_writew);
+ 
+@@ -584,6 +603,7 @@ EXPORT_SYMBOL_GPL(sdio_writew);
+ u32 sdio_readl(struct sdio_func *func, unsigned int addr, int *err_ret)
+ {
+ 	int ret;
++	u32 v;
+ 
+ 	ret = sdio_memcpy_fromio(func, func->tmpbuf, addr, 4);
+ 	if (err_ret)
+@@ -591,7 +611,10 @@ u32 sdio_readl(struct sdio_func *func, unsigned int addr, int *err_ret)
+ 	if (ret)
+ 		return 0xFFFFFFFF;
+ 
+-	return le32_to_cpup((__le32 *)func->tmpbuf);
++	v = le32_to_cpup((__le32 *)func->tmpbuf);
++	if (sdio_traces) pr_info("%s: %.8x=%.8x", __func__, addr, v);
++
++	return v;
+ }
+ EXPORT_SYMBOL_GPL(sdio_readl);
+ 
+@@ -615,6 +638,7 @@ void sdio_writel(struct sdio_func *func, u32 b, unsigned int addr, int *err_ret)
+ 	ret = sdio_memcpy_toio(func, addr, func->tmpbuf, 4);
+ 	if (err_ret)
+ 		*err_ret = ret;
++	if (sdio_traces) pr_info("%s: %.8x=%.8x", __func__, addr, b);
+ }
+ EXPORT_SYMBOL_GPL(sdio_writel);
+ 
